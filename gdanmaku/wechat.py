@@ -60,13 +60,12 @@ def api_wechat_handle():
     ch_color = g.r.get(redis_key(FromUserName + ".ch_color"))
 
     if ch_name is None:
-        return make_reply(
-            FromUserName,
-            ToUserName,
-            "还没有加入频道或者超时，回复\":帮助\"获取帮助。"
-        )
+        # join default channel
+        channel = maybe_join_default_channel(FromUserName)
+        # ch_name = channel.name  # ch_name is not needed anymore, not updating
+    else:
+        channel = cm.get_channel(ch_name)
 
-    channel = cm.get_channel(ch_name)
     if channel is None:
         return make_reply(FromUserName, ToUserName, "频道已經关闭了 T_T")
 
@@ -171,6 +170,19 @@ def do_join_protected_channel(FromUserName, channel, password):
     if ttl > 0:
         g.r.expire(ckey, ttl)
         g.r.expire(pkey, ttl)
+
+
+def maybe_join_default_channel(FromUserName):
+    persistent_channels = current_app.config.get('PERSISTENT_CHANNELS', [])
+    if persistent_channels:
+        default_channel_name = persistent_channels[0]['name']
+        channel = g.channel_manager.get_channel(default_channel_name)
+        do_join_open_channel(FromUserName, channel)
+
+        # return default channel for next step
+        return channel
+
+    return None
 
 
 def wechat_verify():
