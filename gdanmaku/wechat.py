@@ -21,7 +21,7 @@ HELP_MSG = (
     "回复 \":设置 位置 [颜色]\" 设置弹幕属性\n"
     "如 \":设置 顶部 白\" \n"
     "可选的位置有：飞过 顶部 底部\n"
-    "可选的颜色有：蓝 白 红 黄 青 绿 紫 黑")
+    "可选的颜色有：白 蓝 红 黄 青 绿 紫 黑")
 
 
 def redis_key(key):
@@ -75,7 +75,7 @@ def api_wechat_handle():
 
     danmaku = {
         "text": Content,
-        "style": ch_color or 'blue',
+        "style": ch_color or 'white',
         "position": ch_pos or 'fly',
     }
     channel.new_danmaku(danmaku)
