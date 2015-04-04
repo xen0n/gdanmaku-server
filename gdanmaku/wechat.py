@@ -51,6 +51,11 @@ POSITION_MAP = {
     '底': 'bottom',
 }
 
+_color_names_pat = r'|'.join(COLOR_MAP.keys())
+_pos_names_pat = r'|'.join(POSITION_MAP.keys())
+inline_color_re = re.compile(r'\s*[(（]\s*(%s)\s*$' % (_color_names_pat, ))
+inline_pos_re = re.compile(r'\s*[(（]\s*(%s)\s*$' % (_pos_names_pat, ))
+
 
 def redis_key(key):
     return current_app.config.get("REDIS_PREFIX") + "wechat." + key
@@ -100,10 +105,12 @@ def api_wechat_handle():
     if not channel.is_open and not channel.verify_pub_passwd(ch_key):
         return make_reply(FromUserName, ToUserName, "密码错误 T_T")
 
+    # process inline danmaku options
+    cleaned_content, override_pos, override_color = option_trans_inline(Content)
     danmaku = {
-        "text": Content,
-        "style": ch_color or 'white',
-        "position": ch_pos or 'fly',
+        "text": cleaned_content,
+        "style": override_color or ch_color or 'white',
+        "position": override_pos or ch_pos or 'fly',
     }
     channel.new_danmaku(danmaku)
 
@@ -249,6 +256,49 @@ def make_reply(touser, fromuser, content):
 def option_trans(position, color):
     ret = [POSITION_MAP.get(position, None), COLOR_MAP.get(color, None)]
     return ret
+
+
+def option_trans_inline(content):
+    '''
+
+    >>> option_trans_inline('233')
+    ('233', None, None)
+    >>> option_trans_inline('233（红')
+    ('233', None, 'red')
+    >>> option_trans_inline('233（红（顶')
+    ('233', 'top', 'red')
+    >>> option_trans_inline('233（你妹（红（wow（顶（底（蓝')
+    ('233（你妹（红（wow', 'bottom', 'blue')
+
+    '''
+
+    tmp_content = content
+    matched_color = matched_pos = None
+    while True:
+        color_match = inline_color_re.search(tmp_content)
+        if color_match is not None:
+            if matched_color is None:
+                # only record if not already recorded; since the match effectively
+                # starts backwards, this is in line with common expectations that
+                # the last specified option wins.
+                matched_color = COLOR_MAP.get(color_match.group(1), None)
+
+            # remove the tag and continue matching
+            tmp_content = inline_color_re.sub('', tmp_content)
+            continue
+
+        pos_match = inline_pos_re.search(tmp_content)
+        if pos_match is not None:
+            if matched_pos is None:
+                matched_pos = POSITION_MAP.get(pos_match.group(1), None)
+
+            tmp_content = inline_pos_re.sub('', tmp_content)
+            continue
+
+        # no match can be made now, bail
+        break
+
+    return tmp_content, matched_pos, matched_color
 
 
 __all__ = ['api_wechat_handle', ]
