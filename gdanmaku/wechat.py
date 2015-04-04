@@ -96,43 +96,11 @@ def handle_event(FromUserName, ToUserName, Event, EventKey=""):
 
 
 def handle_command(FromUserName, ToUserName, Content):
-    cm = g.channel_manager
-
     # 加入频道
     match = cmd_re_join.match(Content)
     if match:
         mchan, mpass = match.groups()
-        if not mchan:
-            return make_reply(
-                FromUserName,
-                ToUserName,
-                '命令错误哦，回复":帮助"看看使用说明吧')
-
-        channel = cm.get_channel(mchan)
-        ttl = g.r.ttl(channel.key)
-        if channel is None:
-            return make_reply(FromUserName, ToUserName, "木有这个频道。。。")
-
-        if channel.is_open:
-            ckey = redis_key(FromUserName + '.ch_name')
-            g.r.set(ckey, mchan)
-            if ttl > 0:
-                g.r.expire(ckey, ttl)
-            return make_reply(FromUserName, ToUserName, "加入成功")
-
-        # 加密频道
-        if mpass is None or (not channel.verify_pub_passwd(mpass)):
-            return make_reply(FromUserName, ToUserName, "密码不对。。在试试？")
-
-        ckey = redis_key(FromUserName + '.ch_name')
-        pkey = redis_key(FromUserName + '.ch_key')
-        g.r.set(ckey, mchan)
-        g.r.set(pkey, mpass)
-        if ttl > 0:
-            g.r.expire(ckey, ttl)
-            g.r.expire(pkey, ttl)
-
-        return make_reply(FromUserName, ToUserName, "设置通道成功，发射吧")
+        return do_handle_join_cmd(FromUserName, ToUserName, mchan, mpass)
 
     # 设置弹幕属性
     match = cmd_re_opt.match(Content)
@@ -161,6 +129,48 @@ def handle_command(FromUserName, ToUserName, Content):
 
     return make_reply(
         FromUserName, ToUserName, "命令错误哦，回复\":帮助\"看看使用说明吧")
+
+
+def do_handle_join_cmd(FromUserName, ToUserName, channel_name, password):
+    if not channel_name:
+        return make_reply(
+            FromUserName,
+            ToUserName,
+            '命令错误哦，回复":帮助"看看使用说明吧')
+
+    channel = g.channel_manager.get_channel(channel_name)
+    if channel is None:
+        return make_reply(FromUserName, ToUserName, "木有这个频道。。。")
+
+    if channel.is_open:
+        do_join_open_channel(FromUserName, channel)
+        return make_reply(FromUserName, ToUserName, "加入成功")
+
+    # 加密频道
+    if password is None or (not channel.verify_pub_passwd(password)):
+        return make_reply(FromUserName, ToUserName, "密码不对。。在试试？")
+
+    do_join_protected_channel(FromUserName, channel, password)
+    return make_reply(FromUserName, ToUserName, "设置通道成功，发射吧")
+
+
+def do_join_open_channel(FromUserName, channel):
+    ttl = g.r.ttl(channel.key)
+    ckey = redis_key(FromUserName + '.ch_name')
+    g.r.set(ckey, channel.name)
+    if ttl > 0:
+        g.r.expire(ckey, ttl)
+
+
+def do_join_protected_channel(FromUserName, channel, password):
+    ttl = g.r.ttl(channel.key)
+    ckey = redis_key(FromUserName + '.ch_name')
+    pkey = redis_key(FromUserName + '.ch_key')
+    g.r.set(ckey, channel.name)
+    g.r.set(pkey, password)
+    if ttl > 0:
+        g.r.expire(ckey, ttl)
+        g.r.expire(pkey, ttl)
 
 
 def wechat_verify():
