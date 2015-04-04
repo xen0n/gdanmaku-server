@@ -23,6 +23,34 @@ HELP_MSG = (
     "可选的位置有：飞过 顶部 底部\n"
     "可选的颜色有：白 蓝 红 黄 青 绿 紫 黑")
 
+COLOR_MAP = {
+    '蓝': 'blue',
+    '白': 'white',
+    '红': 'red',
+    '黄': 'yellow',
+    '青': 'cyan',
+    '绿': 'green',
+    '紫': 'purple',
+    '黑': 'black',
+    '蓝色': 'blue',
+    '白色': 'white',
+    '红色': 'red',
+    '黄色': 'yellow',
+    '青色': 'cyan',
+    '绿色': 'green',
+    '紫色': 'purple',
+    '黑色': 'black',
+}
+
+POSITION_MAP = {
+    '飞过': 'fly',
+    '顶部': 'top',
+    '底部': 'bottom',
+    '飞': 'fly',
+    '顶': 'top',
+    '底': 'bottom',
+}
+
 
 def redis_key(key):
     return current_app.config.get("REDIS_PREFIX") + "wechat." + key
@@ -219,35 +247,7 @@ def make_reply(touser, fromuser, content):
 
 
 def option_trans(position, color):
-    colors = {
-        '蓝': 'blue',
-        '白': 'white',
-        '红': 'red',
-        '黄': 'yellow',
-        '青': 'cyan',
-        '绿': 'green',
-        '紫': 'purple',
-        '黑': 'black',
-        '蓝色': 'blue',
-        '白色': 'white',
-        '红色': 'red',
-        '黄色': 'yellow',
-        '青色': 'cyan',
-        '绿色': 'green',
-        '紫色': 'purple',
-        '黑色': 'black',
-    }
-
-    positions = {
-        '飞过': 'fly',
-        '顶部': 'top',
-        '底部': 'bottom',
-        '飞': 'fly',
-        '顶': 'top',
-        '底': 'bottom',
-    }
-
-    ret = [positions.get(position, None), colors.get(color, None)]
+    ret = [POSITION_MAP.get(position, None), COLOR_MAP.get(color, None)]
     return ret
 
 
